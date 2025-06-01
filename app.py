@@ -3,6 +3,7 @@ import requests, os
 
 app = Flask(__name__)
 
+# GitHub token must be set in Render's environment variables
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 
 headers = {
@@ -10,10 +11,12 @@ headers = {
     "Accept": "application/vnd.github+json"
 }
 
-# Step to get the authenticated user's GitHub username
+# Helper function to get your GitHub username (repo owner)
 def get_github_username():
     res = requests.get("https://api.github.com/user", headers=headers)
-    return res.json().get("login")
+    if res.status_code == 200:
+        return res.json().get("login")
+    return None
 
 @app.route('/create-repo', methods=['POST'])
 def create_repo():
@@ -21,7 +24,10 @@ def create_repo():
     repo_name = data.get("team_name")
     username = data.get("github_username")
 
-    # Step 1: Create repo under your account
+    if not repo_name or not username:
+        return jsonify({"error": "Missing 'team_name' or 'github_username'"}), 400
+
+    # Step 1: Create the repository under the user's account
     repo_res = requests.post(
         "https://api.github.com/user/repos",
         headers=headers,
@@ -31,10 +37,12 @@ def create_repo():
     if repo_res.status_code != 201:
         return jsonify({"error": repo_res.json()}), repo_res.status_code
 
-    # Step 2: Get your GitHub username (as the repo owner)
+    # Step 2: Get the GitHub username of the authenticated token owner
     owner = get_github_username()
+    if not owner:
+        return jsonify({"error": "Could not retrieve GitHub username"}), 500
 
-    # Step 3: Add collaborator
+    # Step 3: Add the specified user as a collaborator
     collab_res = requests.put(
         f"https://api.github.com/repos/{owner}/{repo_name}/collaborators/{username}",
         headers=headers,
@@ -48,7 +56,6 @@ def create_repo():
         }), collab_res.status_code
 
     return jsonify({"message": "Repo created and user added!"})
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
