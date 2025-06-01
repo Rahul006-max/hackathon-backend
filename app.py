@@ -21,7 +21,7 @@ def create_repo():
     repo_name = data.get("team_name")
     username = data.get("github_username")
 
-    # Step 1: Create repo under the user's account
+    # Step 1: Create repo under your account
     repo_res = requests.post(
         "https://api.github.com/user/repos",
         headers=headers,
@@ -31,10 +31,10 @@ def create_repo():
     if repo_res.status_code != 201:
         return jsonify({"error": repo_res.json()}), repo_res.status_code
 
-    # Step 2: Get the authenticated username (repo owner)
+    # Step 2: Get your GitHub username (as the repo owner)
     owner = get_github_username()
 
-    # Step 3: Add user as collaborator
+    # Step 3: Add collaborator
     collab_res = requests.put(
         f"https://api.github.com/repos/{owner}/{repo_name}/collaborators/{username}",
         headers=headers,
@@ -42,9 +42,13 @@ def create_repo():
     )
 
     if collab_res.status_code not in [201, 204]:
-        return jsonify({"warning": "Repo created but user could not be added", "details": collab_res.json()}), collab_res.status_code
+        return jsonify({
+            "warning": "Repo created but user could not be added",
+            "details": collab_res.json()
+        }), collab_res.status_code
 
     return jsonify({"message": "Repo created and user added!"})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
